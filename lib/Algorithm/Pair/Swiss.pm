@@ -1,4 +1,4 @@
-# $Id: Swiss.pm 20 2006-06-10 15:54:54Z giel $
+# $Id: Swiss.pm 25 2006-06-10 20:24:34Z giel $
 
 #   Algorithm::Pair::Swiss.pm
 #
@@ -15,8 +15,11 @@
 
 =head1 NAME
 
-Algorithm::Pair::Swiss - Perl module to select pairings (designed for 
-Magic: The Gathering tournaments).
+Algorithm::Pair::Swiss - Generate unique pairings for tournaments
+
+=head1 VERSION
+
+This document describes Algorithm::Pair::Swiss version 0.12
 
 =head1 SYNOPSIS
 
@@ -37,7 +40,10 @@ Magic: The Gathering tournaments).
 This module was created as an alternative for Algorithm::Pair::Best, which
 probably offers more control over the pairings, in particular regarding
 ensuring the highest overal quality of pairings. Algorithm::Pair::Swiss is
-sort of dumb in this regard, but uses a slightly more intuitive interface.
+sort of dumb in this regard, but uses a slightly more intuitive interface
+and an algorithm that should perform noticably faster. The module was
+primarily designed based on the Swiss rounds system used for Magic: The
+Gathering tournaments.
 
 After creating an Algorithm::Pair::Swiss-E<gt>B<new> object, use the B<parties>
 method to supply a list of parties (players or teams) to be paired. At any
@@ -80,10 +86,8 @@ use strict;
 use warnings;
 require 5.001;
 
-our $REVISION = sprintf(q{%d} => q{$Rev: 20 $} =~ /(\d+)/g);
-our $VERSION = q(0.11);
-
-use Tie::IxHash 1.21;
+our $REVISION = sprintf(q{%d} => q{$Rev: 25 $} =~ /(\d+)/g);
+our $VERSION = q(0.12);
 
 ######################################################
 #
@@ -95,11 +99,11 @@ use Tie::IxHash 1.21;
 
 =over 4
 
-=item my $pairer = B<Algorithm::Pair::Swiss-E<gt>new>(?parties?)
+=item my $pairer = B<Algorithm::Pair::Swiss-E<gt>new>( @parties )
 
 A B<new> Algorithm::Pair::Swiss object is used to generate pairings.
-Optionally parties can be given when instantiating the object. This is
-the same as using the B<parties> method.
+Optionally @parties can be given when instantiating the object. This is
+the same as using the B<parties> method described below.
 
 =cut
 
@@ -140,7 +144,7 @@ sub pairs {
     return @pairs;
 }    
 
-=item $pair-E<gt>B<exclude>(@pairs)
+=item $pair-E<gt>B<exclude>( @pairs )
 
 Excludes the given pairs from further pairing. The @pairs array
 should consist of a list of references to arrays, each containing the two
@@ -195,9 +199,20 @@ __END__
 
 =back
 
-=head1 BUGS
+=head1 EXPORT
 
-None that I know of....
+None by default.
+
+=head1 BUGS AND LIMITATIONS
+
+No bugs that I know of...
+
+The module's performance will probably break down 
+if you use 1000+ parties and 100+ rounds though...
+
+=head1 REQUIREMENTS
+
+Perl 5.6.0 or later (though it will probably work ok with earlier versions)
 
 =head1 SEE ALSO
 
@@ -208,11 +223,27 @@ None that I know of....
 The B<Algorithm::Pair::Best> module if you need more control
 over your pairings.
 
+=item o overload
+
+For proper results you'll want to overload the B<cmp> and/or B<0+>
+operators of the objects you're using as parties. This will allow
+for the correct sort order, so higher-ranked parties are matched
+better.
+
 =back
+
+=head1 ACKNOWLEDGEMENTS
+
+Reid Augustin for by B<Algorithm::Pair::Best>
+
+Elizabeth Mattijsen for giving me some pointers on getting this module CPAN-ready.
 
 =head1 AUTHOR
 
 Gilion Goudsmit, E<lt>ggoudsmit@shebang.nlE<gt>
+
+I can also be found on http://www.perlmonks.org as Gilimanjaro. You can direct 
+any questions concerning this module there as well.
 
 =head1 COPYRIGHT AND LICENSE
 
