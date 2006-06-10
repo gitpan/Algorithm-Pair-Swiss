@@ -1,0 +1,9 @@
+--- #YAML:1.0
+name: Algorithm-Pair-Swiss
+version: 0.1
+author:
+  - Gilion Goudsmit, E<lt>ggoudsmit@shebang.nl<gt>
+abstract: Perl module to select pairings (designed for 
+Magic: The Gathering tournaments).
+license: perl
+generated_by: Module::Build version 0.2611, without YAML.pm
