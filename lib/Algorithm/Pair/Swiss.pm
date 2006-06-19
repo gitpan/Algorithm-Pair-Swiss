@@ -1,4 +1,4 @@
-# $Id: Swiss.pm 25 2006-06-10 20:24:34Z giel $
+# $Id: Swiss.pm 34 2006-06-19 19:19:43Z giel $
 
 #   Algorithm::Pair::Swiss.pm
 #
@@ -19,7 +19,7 @@ Algorithm::Pair::Swiss - Generate unique pairings for tournaments
 
 =head1 VERSION
 
-This document describes Algorithm::Pair::Swiss version 0.12
+This document describes Algorithm::Pair::Swiss version 0.13
 
 =head1 SYNOPSIS
 
@@ -61,17 +61,25 @@ Algorithm::Pair::Swiss-E<gt>B<pairs> explores the parties and returns the first
 pairing solution which satisfies the excludes. Because it doesn't exhaustively
 try all possible solutions, performance is generally pretty reasonable.
 
-For a large number of parties, if is generally easy to find a non-excluded pair,
+For a large number of parties, it is generally easy to find a non-excluded pair,
 and for a smaller number of parties traversal of the possible pairs is done
 reasonably fast.
 
 This module uses the parties as keys in a hash, and uses the empty string ('')
 as a special case in this same hash. For this reason, please observe the
 following restrictions regarding your party values:
- - make sure it is defined
- - make sure it is defined when stringified
- - make sure each is a non-empty string when stringified
- - make sure each is unique when stringified
+
+=over 0
+
+=item - make sure it is defined (not undef)
+
+=item - make sure it is defined when stringified
+
+=item - make sure each is a non-empty string when stringified
+
+=item - make sure each is unique when stringified
+
+=back
 
 All the restrictions on the stringifications are compatible with the perl's
 default stringification of objects, and should be safe for any stringification
@@ -84,10 +92,13 @@ Class::DBI object).
 package Algorithm::Pair::Swiss;
 use strict;
 use warnings;
+no warnings 'recursion';
 require 5.001;
 
-our $REVISION = sprintf(q{%d} => q{$Rev: 25 $} =~ /(\d+)/g);
-our $VERSION = q(0.12);
+our $REVISION = sprintf(q{%d} => q{$Rev: 34 $} =~ /(\d+)/g);
+our $VERSION = q(0.13);
+
+use Carp;
 
 ######################################################
 #
@@ -119,8 +130,8 @@ sub new {
 Provides the pairer with a complete list of all individuals that can
 be paired. If no parties are specified, it returns the sorted list
 of all parties. This allows you to use this method to extract 'rankings'
-if you happen to have implemented a B<cmp> operation overload in the
-class you parties belong to.
+if you happen to have implemented a B<cmp> operator overload in the
+class your parties belong to.
 
 =cut
 
@@ -128,7 +139,13 @@ sub parties {
     my $self = shift;
     return sort @{$self->{parties}} unless @_;
     $self->{parties} = [ @_ ];
-    for my $i (@{$self->{parties}}) { $self->{exclude}->{$i}={} }
+    for my $i (@{$self->{parties}}) { 
+        croak q{All parties must have a defined stringification}
+            unless defined "$i";
+        croak qq{All parties must have a unique stringification, but "$i" seems to be a duplicate}
+            if exists $self->{exclude}->{"$i"};
+        $self->{exclude}->{"$i"}={} 
+    }
 }
 
 =item @pairs = $pairer-E<gt>B<pairs>
@@ -165,30 +182,46 @@ sub exclude {
     my $self = shift;
     for my $pair (@_) {
 	my ($x,$y) = @$pair;
-	    $self->{exclude}->{$x}->{$y||''} = 1 if $x;
-	    $self->{exclude}->{$y}->{$x||''} = 1 if $y;
+	    $self->{exclude}->{"$x"}->{$y?"$y":''} = 1 if $x;
+	    $self->{exclude}->{"$y"}->{$x?"$x":''} = 1 if $y;
     }	
 }    
+
+=item $pair-E<gt>B<drop>( @parties )
+
+Excludes the given parties from further pairing. The given parties will
+be removed from the internal parties list and won't be returned by the
+parties method anymore. This method is usually used when a participant
+has decided to quit playing.
+
+=cut
+
+sub drop {
+    my $self = shift;
+    my %parties = map { ( "$_" => $_ ) } $self->parties;
+    for my $party (@_) { delete $parties{"$party"} }
+    $self->{parties} = [ values %parties ];
+}
 
 sub _pairs {
     my ($unpaired,$exclude) = @_;
     my @unpaired = @$unpaired;
     my $p1 = shift @unpaired;
     for my $p2 (@unpaired) {
-    	next if exists $exclude->{$p1}->{$p2};		# already paired
-       	next if exists $exclude->{$p2}->{$p1};		# already paired
+    	next if exists $exclude->{"$p1"}->{"$p2"};	# already paired
+       	next if exists $exclude->{"$p2"}->{"$p1"};	# already paired
     	return [$p1,$p2] if @unpaired==1;		    # last pair!
-    	my @remaining = grep {$_ ne $p2} @unpaired;	# this pair could work
+    	my @remaining = grep {"$_" ne "$p2"} @unpaired;	# this pair could work
     	my @pairs = _pairs(\@remaining,$exclude);	# so try to pair the rest
     	next unless @pairs;				            # no luck
     	return [$p1,$p2],@pairs;			        # yay! return the resultset
     }
     if(@unpaired % 2 == 0) {					            # single player left
-    	return if exists $exclude->{$p1}->{''};		# already had a bye before
-	return [$p1,undef] unless @unpaired; 		# return a bye
-	my @pairs = _pairs(\@unpaired,$exclude);
-	return unless @pairs;
-	return @pairs,[$p1,undef];
+        return if exists $exclude->{"$p1"}->{''};		# already had a bye before
+	    return [$p1,undef] unless @unpaired; 		# return a bye
+	    my @pairs = _pairs(\@unpaired,$exclude);
+	    return unless @pairs;
+	    return @pairs,[$p1,undef];
     }
     return;
 }    
